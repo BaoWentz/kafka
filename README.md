@@ -1,2 +1,2 @@
 # kafka
-docker compose kafka
+use docker compose to set up kafka
