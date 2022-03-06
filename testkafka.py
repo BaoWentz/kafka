@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
 ''''' 使用kafka-Python 1.3.3模块 '''
 import cv2
-import time
-import imutils
 import argparse
 import numpy as np
-from icecream import ic
 from imutils.video import FPS
-from imutils.video import VideoStream
 
 from kafka import KafkaProducer
 from kafka import KafkaConsumer
@@ -33,19 +29,22 @@ class Kafka_producer():
         # start producer
         producer = self.producer
 
-        vs = VideoStream(src=0, framerate=10).start()
-        time.sleep(2.0)
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            raise Exception('Could not open video device')
+        cap.set(cv2.CAP_PROP_FPS, 10)
+        # cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.w)
+        # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.h)
         fps_p = FPS().start()
 
         print("publishing video...")
         num_frame = self.num_frame
         while num_frame == -1 or fps_p._numFrames <= num_frame:
-            frame = vs.read()
+            ret, frame = cap.read()
             if frame is not None:
-                frame = imutils.resize(frame, width=self.w, height=self.h)
-                # print(frame.shape)
-                # send to kafka topic
+                frame = cv2.resize(frame, (self.w, self.h))
                 print(fps_p._numFrames)
+                # send to kafka topic
                 k = f'{self.key}_img'.encode()
                 producer.send(self.kafkatopic, key=k, value=frame.tobytes())
                 fps_p.update()
@@ -55,10 +54,11 @@ class Kafka_producer():
                 v = parmas_message.encode()
                 print("send msg:(k,v)", k, v)
                 producer.send(self.kafkatopic, key=k, value=v)
+                break
 
         fps_p.stop()
         print(f'fps: {fps_p.fps():.0f}')
-        vs.stop()
+        cap.release()
 
 
 class Kafka_consumer():
@@ -115,13 +115,8 @@ def main(args):
                 decoded = decoded.reshape(img_h, img_w, 3)
                 print(fps._numFrames)
 
-                try:
-                    cv2.imshow("Cam", decoded)
-                    key = cv2.waitKey(1) & 0xFF
-                    if key == ord("q"):
-                        break
-                except:
-                    cv2.imwrite('/home/ecnu-lzw/bwz/ocr-gy/kafka/out.jpg', decoded)
+                # cv2.imshow("Cam", decoded)
+                cv2.imwrite('./out.jpg', decoded)
 
                 fps.update()
 
@@ -192,7 +187,7 @@ if __name__ == '__main__':
     args.resolution = list(map(int, args.resolution.split(',')))
 
     main(args)
-    # python testkafka.py --producer --topic test --key key --num_frame 3 --resolution 75,100  # 生产消息
+    # python testkafka.py --producer --topic test --key key --num_frame 100 --resolution 75,100  # 生产消息
     # python testkafka.py --consumer --topic test --group_id newg --key key --resolution 75,100  # 消费消息
     # 为了可以发送大于1MB的图片需要在broker端修改: message.max.bytes:1048588
     # 查看消息数: kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic test --time -1
