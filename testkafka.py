@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 ''''' 使用kafka-Python 1.3.3模块 '''
 import cv2
+import time
 import argparse
 import numpy as np
 from imutils.video import FPS
@@ -60,6 +61,11 @@ class Kafka_producer():
         print(f'fps: {fps_p.fps():.0f}')
         cap.release()
 
+    def sendchar(self, char):
+        # start producer
+        producer = self.producer
+        producer.send(self.kafkatopic, value=char.encode('utf8'))
+
 
 class Kafka_consumer():
     ''''' 消费模块: 通过不同groupid消费topic里面的消息 '''
@@ -92,10 +98,14 @@ def main(args):
         producer = Kafka_producer(args)
         print("===========> producer:", producer)
         # producer.sendjsondata(params)
-        try:
-            producer.sendvideo()
-        except KafkaError as e:
-            print(e)
+        # try:
+        #     producer.sendvideo()
+        # except KafkaError as e:
+        #     print(e)
+        for i in range(1000):
+            time.sleep(0.25)
+            producer.sendchar(str(i))
+            print(i)
 
     if args.consumer:
         # 消费模块
@@ -107,22 +117,23 @@ def main(args):
         message = consumer.consume_data()
         for msg in message:
             print('offset---------------->', msg.offset)
-            k, k_state = msg.key.decode().split('_')
-            if k_state == 'noimg':
-                print('msg---------------->k,v', k, msg.value.decode())
-            elif k_state == 'img':
-                decoded = np.frombuffer(msg.value, np.uint8)
-                decoded = decoded.reshape(img_h, img_w, 3)
-                print(fps._numFrames)
+            print(msg.value.decode('utf8'))
+            # k, k_state = msg.key.decode().split('_')
+        #     if k_state == 'noimg':
+        #         print('msg---------------->k,v', k, msg.value.decode())
+        #     elif k_state == 'img':
+        #         decoded = np.frombuffer(msg.value, np.uint8)
+        #         decoded = decoded.reshape(img_h, img_w, 3)
+        #         print(fps._numFrames)
 
-                # cv2.imshow("Cam", decoded)
-                cv2.imwrite('./out.jpg', decoded)
+        #         # cv2.imshow("Cam", decoded)
+        #         cv2.imwrite('./out.jpg', decoded)
 
-                fps.update()
+        #         fps.update()
 
-        fps.stop()
-        cv2.destroyAllWindows()
-        print(f'fps: {fps.fps():.0f}')
+        # fps.stop()
+        # cv2.destroyAllWindows()
+        # print(f'fps: {fps.fps():.0f}')
 
 
 def make_parser():
